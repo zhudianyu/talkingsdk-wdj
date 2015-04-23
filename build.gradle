@@ -1,0 +1,101 @@
+apply plugin: 'maven'
+
+uploadArchives {
+    repositories.mavenDeployer {
+        repository(url: mavenDirectory)
+        pom.groupId = 'com.talkingsdk'
+        pom.version = '3.2.6'
+        pom.artifactId = 'talkingsdk-wdj'
+    }
+}
+task releaseCurJar(type: Copy) {  
+    from( 'build/intermediates/bundles/release')  
+    into( '../talkingsdk-wdj-u3d-demo/Assets/Plugins/Android/libs')  
+    include('classes.jar')  
+    rename('classes.jar', 'talkingsdk-wdj-3.2.6.jar')
+}
+task releaseCommonJar(type: Copy){
+    from( 'build/intermediates/exploded-aar/talkingsdk-env.projects/talkingsdk-u3d/unspecified')  
+    into( '../talkingsdk-wdj-u3d-demo/Assets/Plugins/Android/libs')  
+    include('classes.jar')  
+    rename('classes.jar', 'talkingsdk-unity-0.1.jar')
+}
+task installApk(type:Exec, dependsOn: 'reJar') {
+    workingDir '../talkingsdk-wdj-u3d-demo/'
+    commandLine 'Unity','-quit',' -batchmode','-executeMethod', 'CommandBuild.BuildAndroid','com.zqgame.hycs.wdj','wdjDemo','1.0.0','-logFile', 'test.log'
+    commandLine 'adb','install','-r','TalkingSdkU3dDemo.apk'
+}
+
+task reJar(type: Copy, dependsOn: 'build') {
+    from("../../libs/libs-wdj"){
+        include 'libs/'
+        include 'res/'
+        include 'assets/'
+    }
+    from('build/intermediates/exploded-aar/talkingsdk-env.projects/talkingsdk-u3d/unspecified') {
+        rename 'classes.jar', 'libs/talkingsdk-u3d-0.5.jar'
+        include 'classes.jar'
+    }
+    from('build/intermediates/bundles/release') {
+        rename 'classes.jar', 'libs/talkingsdk-wdj-3.2.6.jar'
+        include 'classes.jar'
+    }
+    into '../talkingsdk-wdj-u3d-demo/Assets/Plugins/Android/'
+}
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath System.getenv()['ANDROID_GRADLE_VERSION']
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 16
+    compileSdkVersion 19
+    buildToolsVersion System.getenv()["BUILD_TOOL_VERSION"]
+
+    defaultConfig {
+        minSdkVersion 8
+        targetSdkVersion 19
+        versionCode 1
+        versionName "1.0"
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDir 'src'
+            res.srcDir 'res'
+            assets.srcDir 'assets'
+            resources.srcDir 'src'
+        }
+        test {
+            java.srcDir 'tests/src'
+        }
+    }
+    lintOptions {
+        abortOnError false
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "http://repos.code4.in/release/talkingsdk-maven/raw/master/"
+    }
+}
+dependencies {
+    if ( System.getenv()["TSENV"] != "production" ) {
+        compile project(':projects:talkingsdk-u3d')
+        compile project(':libs:libs-wdj')
+    } else {
+        // use the correct version
+        compile("com.talkingsdk:talking-wdj:3.2.6")
+        compile("com.talkingsdk:talkingsdk-u3d:0.6")
+    }
+}
